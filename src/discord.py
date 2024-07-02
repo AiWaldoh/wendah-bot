@@ -1,6 +1,5 @@
 import os
 import re
-import requests
 from bs4 import BeautifulSoup
 import asyncio
 from config import Config
@@ -8,7 +7,6 @@ from dataclasses import dataclass
 from playwright.async_api import async_playwright
 import aiohttp
 import logging
-import re
 
 logging.basicConfig(level=logging.INFO)
 
@@ -83,16 +81,6 @@ class MessageExtractor:
             return match.group(1) if match else None
         return None
 
-
-class DiscordBrowser:
-    def __init__(self, config: Config):
-        self.config = config
-        self.browser = None
-        self.page = None
-
-    async def launch(self, playwright):
-        self.browser = await playwright.chromium.launch(headless=True)
-
     async def login(self):
         session_file = os.path.join("secret", self.config.SESSION_FILE)
 
@@ -157,6 +145,16 @@ class MessageParser:
         return self.message_extractor.extract_message_data(message_soup)
 
 
+class DiscordBrowser:
+    def __init__(self, config: Config):
+        self.config = config
+        self.browser = None
+        self.page = None
+
+    async def launch(self, playwright):
+        self.browser = await playwright.chromium.launch(headless=True)
+
+
 class DiscordClient:
     def __init__(self, config: Config, message_parser: MessageParser):
         self.config: Config = config
@@ -199,8 +197,7 @@ class DiscordClient:
 
             try:
                 # Add a placeholder character to show "is typing"
-                self.placeholder_count = 0
-                typing_task = asyncio.create_task(self._keep_typing_placeholder())
+                await self._add_typing_placeholder()
 
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
@@ -208,39 +205,25 @@ class DiscordClient:
                     ) as api_response:
                         if api_response.status == 200:
                             processed_response = await api_response.json()
-                            # Clear the placeholder characters before sending the response
-                            await self._clear_typing_placeholders()
+                            # Clear the placeholder character before sending the response
+                            await self._clear_typing_placeholder()
                             await self._send_response(processed_response["text"])
                         else:
                             logging.error(
                                 f"Failed to get response from JSON server: {api_response.status}"
                             )
-                            # Clear the placeholder characters in case of error
-                            await self._clear_typing_placeholders()
+                            # Clear the placeholder character in case of error
+                            await self._clear_typing_placeholder()
             except aiohttp.ClientError as e:
                 logging.error(f"HTTP request failed: {e}")
-                # Clear the placeholder characters in case of exception
-                await self._clear_typing_placeholders()
-            finally:
-                # Ensure the typing task is cancelled
-                typing_task.cancel()
-
-    async def _keep_typing_placeholder(self):
-        try:
-            while True:
-                await self._add_typing_placeholder()
-                await asyncio.sleep(5)  # Re-type the placeholder every 5 seconds
-        except asyncio.CancelledError:
-            pass
+                # Clear the placeholder character in case of exception
+                await self._clear_typing_placeholder()
 
     async def _add_typing_placeholder(self):
         await self.browser.page.type('div[role="textbox"]', ".")
-        self.placeholder_count += 1
 
-    async def _clear_typing_placeholders(self):
-        for _ in range(self.placeholder_count):
-            await self.browser.page.press('div[role="textbox"]', "Backspace")
-        self.placeholder_count = 0
+    async def _clear_typing_placeholder(self):
+        await self.browser.page.press('div[role="textbox"]', "Backspace")
 
     async def _send_response(self, message):
         if not message:

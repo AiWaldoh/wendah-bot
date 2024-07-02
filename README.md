@@ -14,6 +14,7 @@ This project contains a simple Discord bot named Wendah that interacts with user
 2. Install Poetry (if not already installed): `curl -sSL https://install.python-poetry.org | python3`
 3. Install project dependencies: `poetry install`
 4. Set up your environment variables in a `.env` file following the provided template in the `.env.example` file
+5. Sign in to discord with headless browser set to false the first time you run the bot (to bypass captcha). This will create a session file in the `secret` folder.
 
 ## Usage
 
@@ -33,10 +34,6 @@ Ensure to configure the following variables in your `.env` file:
 - BOT_NAME: Mention name for the bot in Discord
 - API_URL: URL for any external APIs used
 - COHERE_API_KEY: API key for the Cohere chat API
-
-## API Server
-
-The project contains an API endpoint for interacting with the Cohere chat API. Start the API server using the instructions in `src/api.py`.
 
 ## License
 
